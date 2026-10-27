@@ -1,30 +1,35 @@
-
 class Entrada {
-  const banda
-  const fechaConcierto
-  var precio = 1000 //precio base sin impuesto 
+  const property banda 
+// uso el property ya que permite generar automáticamente los métodos de acceso
+  const property fechaConcierto
+  const precioBase = 1000
 
-  method precioConDescuento() {
-    precio = precio+productora.impuesto 
+  method precioConImpuesto() = precioBase + productora.impuesto()
+
+// Separo el calculo del precio con impuesto del descuento,
+// para reutilizar el resultado y evitar repetir logica.
+  method precioConDescuento(porcentaje){
+    self.precioConImpuesto() * (1 - porcentaje / 100)
   }
 }
-  
 
 class Asistente {
-  var tipoDeAbono = fan //inicializo
-  var historialDeEntradas = [] //(inicialmente no tiene ninguna)
-  var saldo // puede ser negativo
+  var property tipoDeAbono = fan // inicializo, despues puede cambiar
+  var historialDeEntradas = [] 
+// inicialmente la lista no tiene nada, la declaro vacia
+  var saldo 
+
 
   method puedeComprarEntrada() {
       return saldo > 0
-  } 
+  } // puede ser negativo asi que me hago un auxiliar que lo corrobore
 
   method comprarEntrada(banda , fecha) {
     if (self.puedeComprarEntrada()) {
-      const entrada = new Entrada(banda = banda, fechaConcierto = fecha) //agrego a historial
-      const monto = entrada.precioConDescuento(tipoDeAbono.porcentajeDescuento)
-      saldo -= monto 
-      historialDeEntradas.add(entrada)
+  //Con self, puedo hacer que el objeto se conozca a si mismo
+      const entrada = new Entrada(banda = banda, fechaConcierto = fecha) 
+      saldo -= entrada.precioConDescuento(tipoDeAbono.porcentajeDescuento()) 
+      historialDeEntradas.add(entrada) //agrega a la lista del historial
     } else {
       self.error("No se puede comprar una entrada con saldo no positivo")
     }
@@ -32,32 +37,37 @@ class Asistente {
   //uso esta manera de tirar el error porque no tengo ningun otro tipo de excepcion como para 
   //programar una clase de excepciones personalizadas. para que usar la herencia si es solo UN error?
   
-  method entradasAnteriores(historialDeEntradas){
-    const hoy = new Date()
+  method entradasAnteriores(){
+    const hoy = new Date() //clase de fechas, separado por dia mes y anio
     const anioPasado = hoy.year() - 1
     
-    return historialDeEntradas.filter({entrada => entrada.fecha.year() == anioPasado})
+    return historialDeEntradas.filter({entrada => entrada.fechaConcierto.year() == anioPasado})
   }
 
-  method nombreBandasCompradas(historialDeEntradas){
-    return historialDeEntradas.map({entrada => entrada.nombre()}).asSet()
+  method nombreBandasCompradas(){
+    return historialDeEntradas.map({entrada => banda.nombre()}).asSet()
   }
 }
 
 object fan {
-  const porcentajeDescuento = 0
+  method porcentajeDescuento() = 0
 }
 
-object vip {
-  var porcentajeDescuento 
+class Vip {
+  var porcentajeDescuento
+
+  method porcentajeDescuento() = porcentajeDescuento
+
+  method bonificar() { 
+    porcentajeDescuento += 1 
+    }
 }
+//uso una clase para vip porque tengo un descuento de cada asistente
 
 
-//utilizo herencia en la banda porque comparten ciertos metodos que se repiten, asi que me evito repetir
-//logica con cada tipo de banda que tengo.
 class Banda {
-  const nombre 
-  const canon = 1000000 //canon base, solo cambia en trap
+  const property nombre
+  const canon = 1000000
   var gastoExtra
 
   method presupuesto() {
@@ -65,63 +75,70 @@ class Banda {
   }
 
   method popularidad()
-  //uso una clase abstracta que defino en cada subclase ya que segun el tipo de banda, su 
-  //popularidad no es la misma, asi que lo delego para escribirlo a detalle en cada banda.
-
+// uso las clases abstractas cuando despues quiero declarar diferentes utilidades
+// tengo polimorfismo-> se puede pedir popularidad() a cualquier banda 
 }
 
+// uso la herencia porque tengo varias bandas que comparten ciertas caracteristicas aunque despues segun
+// el tipo de banda tenga algunas caracteristicas especiales
 
-class BandaDeRock inherits Banda (gastoExtra=10000) {
+class BandaDeRock inherits Banda (gastoExtra = 10000) {
   var cantidadSolosGuitarra
 
-  override method popularidad(){
-    return cantidadSolosGuitarra*100
+//redefino el metodo heredado para concordar con la condicion de las bandas de rock por ejemplo
+  override method popularidad() {
+    return cantidadSolosGuitarra * 100
   }
 }
 
-class BandaDeTrap inherits Banda (gastoExtra=0){
-  const tienenHielo = false //inicializo así por ahora
+class BandaDeTrap inherits Banda (gastoExtra = 0) {
+  var tienenHielo
 
-  override method popularidad(){
-    if(tienenHielo){
+  override method popularidad() {
+    if (tienenHielo) {
       return 1000
-    } else {return 0}
+    } else {
+      return 0
+    }
+  }
+
+  override method presupuesto() {
+    return self.popularidad() * 1000000 + gastoExtra
   }
 }
 
 class BandaIndie inherits Banda {
-  const cantInstrumentos
+  var cantInstrumentos
 
-  method cuantoGastoExtra(cantInstrumentos){
-    return cantInstrumentos*500
+  override method presupuesto() {
+    return canon + cantInstrumentos * 500
   }
-  
-  override method popularidad(){
-    return nombre.size()*3,14
+
+  override method popularidad() {
+    return nombre.size() * 3.14
   }
-  
 }
 
-
 object productora {
-  var impuesto //para ponerlo en las entradas 
-  var asistente
+  var impuesto 
+// para ponerlo en las entradas, no se cuanto es
+  const asistentes = []
+  const bandas = []
+// estas listas me quedan que la productora pueda conocer los otros objetos
 
   method gananciaTotal() {
     return historialDeEntradas.map({entrada => entrada.precio}).sum()
   }
 
-  method cantEntradasVendidas() { // recaudación de las entradas compradas por los asistentes
-    return historialDeEntradas.length()
+  method cantEntradasVendidas() { 
+    return asistentes.historialDeEntradas.length()
   }
 
   method bandaMasPopular() {
-    const mejorBanda = historialDeEntradas.map({entrada => entrada.banda.popularidad}).max()
+    bandas.max({b => self.entradasVendidas().count({e => e.banda() == b})})
   }
 
-  method bonificarAsistentes() { // debe poder bonificar a los asistentes vip
-
-  } 
-
-
+  method bonificarAsistentesVip() {
+    asistentes.filter({a => a.esVip()}).forEach({a => a.tipoDeAbono().bonificar()})
+  }
 }
